@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Tracker - Cloud Sync</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h1 { color: #667eea; margin-bottom: 10px; }
+
+        .sync-status {
+            background: #e8f5e9;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+            display: inline-block;
+        }
+
+        .sync-status.syncing { background: #fff3e0; }
+        .sync-status.error { background: #ffebee; }
+
+        .header-stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: #f8f9ff;
+            padding: 15px 25px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-number { font-size: 28px; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; font-size: 14px; margin-top: 5px; }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content { grid-template-columns: 1fr; }
+        }
+
+        .goals-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .add-goal-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .add-goal-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .filter-tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .goal-card {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .goal-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .goal-title { font-size: 18px; font-weight: 600; color: #333; }
+
+        .goal-category {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .category-career { background: #e3f2fd; color: #1976d2; }
+        .category-financial { background: #e8f5e9; color: #388e3c; }
+        .category-personal { background: #fff3e0; color: #f57c00; }
+
+        .goal-timeframe {
+            font-size: 12px;
+            color: #666;
+            background: white;
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+
+        .progress-container { margin: 15px 0; }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .goal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .goal-action-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .goal-action-btn:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+        }
+
+        .parent-goal-indicator {
+            display: inline-block;
+            background: #fff3e0;
+            color: #f57c00;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .linked-goals-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .linked-goal-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
+            font-size: 13px;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .widget-box {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .widget-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .upcoming-item {
+            padding: 12px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 My Goal Tracker</h1>
+            <p style="color: #666; margin-top: 10px;">Synced across all your devices</p>
+            <div class="sync-status" id="syncStatus">💾 Saved locally</div>
+
+            <div class="header-stats">
+                <div class="stat-box">
+                    <div class="stat-number" id="totalGoals">0</div>
+                    <div class="stat-label">Total Goals</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="activeGoals">0</div>
+                    <div class="stat-label">Active Goals</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="completedGoals">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="avgProgress">0%</div>
+                    <div class="stat-label">Avg Progress</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="goals-section">
+                <div class="section-header">
+                    <h2>My Goals</h2>
+                    <button class="add-goal-btn" onclick="openAddGoalModal()">+ Add New Goal</button>
+                </div>
+
+                <div class="filter-tabs">
+                    <div class="filter-tab active" data-filter="all">All</div>
+                    <div class="filter-tab" data-filter="career">Career</div>
+                    <div class="filter-tab" data-filter="financial">Financial</div>
+                    <div class="filter-tab" data-filter="personal">Personal Dev</div>
+                </div>
+
+                <div id="goalsList"></div>
+            </div>
+
+            <div class="sidebar">
+                <div class="widget-box">
+                    <div class="widget-title">⏰ Upcoming Deadlines</div>
+                    <div id="upcomingList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="goalModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Goal</h2>
+                <button class="close-btn" onclick="closeGoalModal()">&times;</button>
+            </div>
+            <form id="goalForm">
+                <div class="form-group">
+                    <label class="form-label">Goal Title *</label>
+                    <input type="text" class="form-input" id="goalTitle" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select class="form-select" id="goalCategory" required>
+                        <option value="">Select...</option>
+                        <option value="career">Career/Professional</option>
+                        <option value="financial">Financial</option>
+                        <option value="personal">Personal Development</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Timeframe *</label>
+                    <select class="form-select" id="goalTimeframe" required>
+                        <option value="">Select...</option>
+                        <option value="short">Short-term (1-3 months)</option>
+                        <option value="medium">Medium-term (3-12 months)</option>
+                        <option value="long">Long-term (1+ years)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Target Date *</label>
+                    <input type="date" class="form-input" id="goalTargetDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="goalDescription" placeholder="What do you want to achieve?"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Current Progress (%)</label>
+                    <input type="number" class="form-input" id="goalProgress" min="0" max="100" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Link to Parent Goal (optional)</label>
+                    <select class="form-select" id="parentGoalId">
+                        <option value="">None - Standalone goal</option>
+                    </select>
+                    <span class="help-text">For interim goals that contribute to a larger goal</span>
+                </div>
+
+                <div class="form-group" id="targetAmountGroup" style="display: none;">
+                    <label class="form-label">Target Amount ($)</label>
+                    <input type="number" class="form-input" id="goalTargetAmount" step="0.01" placeholder="25000">
+                    <span class="help-text">For tracking financial progress</span>
+                </div>
+
+                <button type="submit" class="submit-btn">Save Goal</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Using JSONBin.io for free cloud storage
+        const JSONBIN_API_KEY = '$2a$10$AzOezuhTAEkzMHlqXI3cpuc3ftsO/gmlXz.ChJGsy5HruigYOsmiS'; // You'll get this from JSONBin
+        const BIN_ID = '698b85a143b1c97be974db27'; // You'll get this after creating a bin
+
+        let goals = [];
+        let currentFilter = 'all';
+        let editingGoalId = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromCloud();
+            initFilterTabs();
+            
+            document.getElementById('parentGoalId').addEventListener('change', function() {
+                const targetAmountGroup = document.getElementById('targetAmountGroup');
+                if (this.value) {
+                    const parentGoal = goals.find(g => g.id == this.value);
+                    if (parentGoal && parentGoal.category === 'financial') {
+                        targetAmountGroup.style.display = 'block';
+                    } else {
+                        targetAmountGroup.style.display = 'none';
+                    }
+                } else {
+                    targetAmountGroup.style.display = 'none';
+                }
+            });
+
+            // Auto-sync every 30 seconds
+            setInterval(loadFromCloud, 30000);
+        });
+
+        async function loadFromCloud() {
+            // Try to load from cloud first, fall back to local storage
+            if (BIN_ID !== 'YOUR_BIN_ID_HERE') {
+                try {
+                    showSyncStatus('🔄 Syncing...', 'syncing');
+                    const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                        headers: {
+                            'X-Master-Key': JSONBIN_API_KEY
+                        }
+                    });
+                    const data = await response.json();
+                    goals = data.record.goals || [];
+                    localStorage.setItem('goals', JSON.stringify(goals));
+                    showSyncStatus('✅ Synced');
+                } catch (error) {
+                    console.log('Cloud sync failed, using local data');
+                    goals = JSON.parse(localStorage.getItem('goals')) || [];
+                    showSyncStatus('💾 Using local data');
+                }
+            } else {
+                // No cloud setup yet, use local storage
+                goals = JSON.parse(localStorage.getItem('goals')) || [];
+                showSyncStatus('💾 Saved locally');
+            }
+            
+            renderGoals();
+            renderUpcoming();
+            updateStats();
+        }
+
+        async function saveToCloud() {
+            localStorage.setItem('goals', JSON.stringify(goals));
+            
+            if (BIN_ID !== 'YOUR_BIN_ID_HERE') {
+                try {
+                    showSyncStatus('🔄 Syncing...', 'syncing');
+                    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': JSONBIN_API_KEY
+                        },
+                        body: JSON.stringify({ goals: goals })
+                    });
+                    showSyncStatus('✅ Synced');
+                } catch (error) {
+                    showSyncStatus('⚠️ Saved locally only', 'error');
+                }
+            } else {
+                showSyncStatus('💾 Saved locally');
+            }
+        }
+
+        function showSyncStatus(message, className = '') {
+            const status = document.getElementById('syncStatus');
+            status.textContent = message;
+            status.className = 'sync-status ' + className;
+        }
+
+        function initFilterTabs() {
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    renderGoals();
+                });
+            });
+        }
+
+        function openAddGoalModal() {
+            editingGoalId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Goal';
+            document.getElementById('goalForm').reset();
+            updateParentGoalDropdown();
+            document.getElementById('goalModal').classList.add('active');
+        }
+
+        function editGoal(goalId) {
+            const goal = goals.find(g => g.id == goalId);
+            if (!goal) return;
+            
+            editingGoalId = goalId;
+            document.getElementById('modalTitle').textContent = 'Edit Goal';
+            document.getElementById('goalTitle').value = goal.title;
+            document.getElementById('goalCategory').value = goal.category;
+            document.getElementById('goalTimeframe').value = goal.timeframe;
+            document.getElementById('goalTargetDate').value = goal.targetDate;
+            document.getElementById('goalDescription').value = goal.description || '';
+            document.getElementById('goalProgress').value = goal.progress;
+            
+            updateParentGoalDropdown();
+            document.getElementById('parentGoalId').value = goal.parentGoalId || '';
+            document.getElementById('goalTargetAmount').value = goal.targetAmount || '';
+            
+            if (goal.parentGoalId) {
+                const parent = goals.find(g => g.id == goal.parentGoalId);
+                if (parent && parent.category === 'financial') {
+                    document.getElementById('targetAmountGroup').style.display = 'block';
+                }
+            }
+            
+            document.getElementById('goalModal').classList.add('active');
+        }
+
+        function closeGoalModal() {
+            document.getElementById('goalModal').classList.remove('active');
+            editingGoalId = null;
+        }
+
+        function updateParentGoalDropdown() {
+            const select = document.getElementById('parentGoalId');
+            const options = '<option value="">None - Standalone goal</option>' + 
+                goals.filter(g => !g.parentGoalId && g.id != editingGoalId)
+                    .map(g => `<option value="${g.id}">${g.title}</option>`)
+                    .join('');
+            select.innerHTML = options;
+        }
+
+        document.getElementById('goalForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const goal = {
+                id: editingGoalId || Date.now().toString(),
+                title: document.getElementById('goalTitle').value,
+                category: document.getElementById('goalCategory').value,
+                timeframe: document.getElementById('goalTimeframe').value,
+                targetDate: document.getElementById('goalTargetDate').value,
+                description: document.getElementById('goalDescription').value,
+                progress: parseInt(document.getElementById('goalProgress').value),
+                parentGoalId: document.getElementById('parentGoalId').value || null,
+                targetAmount: parseFloat(document.getElementById('goalTargetAmount').value) || null
+            };
+            
+            if (editingGoalId) {
+                const index = goals.findIndex(g => g.id == editingGoalId);
+                goals[index] = goal;
+            } else {
+                goals.push(goal);
+            }
+            
+            await saveToCloud();
+            renderGoals();
+            renderUpcoming();
+            updateStats();
+            closeGoalModal();
+        });
+
+        async function deleteGoal(goalId) {
+            if (confirm('Are you sure you want to delete this goal?')) {
+                goals = goals.filter(g => g.id != goalId);
+                await saveToCloud();
+                renderGoals();
+                renderUpcoming();
+                updateStats();
+            }
+        }
+
+        function renderGoals() {
+            const goalsList = document.getElementById('goalsList');
+            let filteredGoals = currentFilter === 'all' ? goals : goals.filter(g => g.category === currentFilter);
+
+            if (filteredGoals.length === 0) {
+                goalsList.innerHTML = '<div class="empty-state"><div style="font-size: 64px; margin-bottom: 20px;">🎯</div><h3>No goals yet</h3><p>Click "Add New Goal" to get started!</p></div>';
+                return;
+            }
+
+            goalsList.innerHTML = filteredGoals.map(goal => {
+                const daysUntil = Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24));
+                const timeframeLabels = { short: 'Short-term', medium: 'Medium-term', long: 'Long-term' };
+                const childGoals = goals.filter(g => g.parentGoalId == goal.id);
+                const parentGoal = goal.parentGoalId ? goals.find(g => g.id == goal.parentGoalId) : null;
+                
+                let cumulativeAmount = 0;
+                let parentTargetAmount = 0;
+                if (goal.category === 'financial' && childGoals.length > 0) {
+                    childGoals.forEach(child => {
+                        if (child.targetAmount) cumulativeAmount += (child.targetAmount * child.progress / 100);
+                    });
+                    parentTargetAmount = childGoals.reduce((sum, child) => sum + (child.targetAmount || 0), 0);
+                }
+
+                return `
+                    <div class="goal-card">
+                        <div class="goal-header">
+                            <div>
+                                <div class="goal-title">
+                                    ${goal.title}
+                                    ${childGoals.length > 0 ? '<span class="parent-goal-indicator">Parent Goal</span>' : ''}
+                                    ${parentGoal ? `<span class="parent-goal-indicator">→ ${parentGoal.title}</span>` : ''}
+                                </div>
+                                <span class="goal-category category-${goal.category}">${goal.category}</span>
+                            </div>
+                            <span class="goal-timeframe">${timeframeLabels[goal.timeframe]}</span>
+                        </div>
+                        ${goal.description ? `<p style="color: #666; margin-bottom: 12px; font-size: 14px;">${goal.description}</p>` : ''}
+                        <div style="font-size: 13px; color: #666; margin-bottom: 12px;">
+                            📅 Target: ${new Date(goal.targetDate).toLocaleDateString()} 
+                            ${daysUntil > 0 ? `(${daysUntil} days left)` : daysUntil === 0 ? '(Today!)' : '(Overdue)'}
+                        </div>
+                        ${goal.targetAmount ? `<div style="font-size: 13px; color: #666; margin-bottom: 8px;">💰 Target: $${goal.targetAmount.toLocaleString()}</div>` : ''}
+                        ${parentTargetAmount > 0 ? `<div style="font-size: 13px; color: #666; margin-bottom: 8px;">💰 Cumulative: $${cumulativeAmount.toLocaleString()} / $${parentTargetAmount.toLocaleString()}</div>` : ''}
+                        <div class="progress-container">
+                            <div class="progress-header"><span>Progress</span><span><strong>${goal.progress}%</strong></span></div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: ${goal.progress}%"></div></div>
+                        </div>
+                        ${childGoals.length > 0 ? `
+                            <div class="linked-goals-section">
+                                <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 10px;">🔗 Linked Goals (${childGoals.length})</div>
+                                ${childGoals.map(child => `
+                                    <div class="linked-goal-item">
+                                        <strong>${child.title}</strong><br>
+                                        ${child.targetAmount ? `$${child.targetAmount.toLocaleString()} • ` : ''}
+                                        ${new Date(child.targetDate).toLocaleDateString()} • ${child.progress}%
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        <div class="goal-actions">
+                            <button class="goal-action-btn" onclick="editGoal('${goal.id}')">✏️ Edit</button>
+                            <button class="goal-action-btn" onclick="deleteGoal('${goal.id}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderUpcoming() {
+            const upcomingList = document.getElementById('upcomingList');
+            const today = new Date();
+            const upcoming = goals.filter(g => new Date(g.targetDate) >= today).sort((a, b) => new Date(a.targetDate) - new Date(b.targetDate)).slice(0, 5);
+
+            if (upcoming.length === 0) {
+                upcomingList.innerHTML = '<p style="color: #999; text-align: center;">No upcoming deadlines</p>';
+                return;
+            }
+
+            upcomingList.innerHTML = upcoming.map(goal => {
+                const daysUntil = Math.ceil((new Date(goal.targetDate) - today) / (1000 * 60 * 60 * 24));
+                return `
+                    <div class="upcoming-item">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">${new Date(goal.targetDate).toLocaleDateString()} · ${daysUntil} days</div>
+                        <div style="font-weight: 600;">${goal.title}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const total = goals.length;
+            const completed = goals.filter(g => g.progress === 100).length;
+            const active = total - completed;
+            const avgProgress = total > 0 ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / total) : 0;
+
+            document.getElementById('totalGoals').textContent = total;
+            document.getElementById('activeGoals').textContent = active;
+            document.getElementById('completedGoals').textContent = completed;
+            document.getElementById('avgProgress').textContent = avgProgress + '%';
+        }
+    </script>
+</body>
+</html>
